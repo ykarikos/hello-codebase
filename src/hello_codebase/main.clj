@@ -40,10 +40,15 @@
 
 (defn- get-temperature [city-id]
   (let [response (http-get (weather-url city-id))
+        timestamps (->> response
+                        (map :created response)
+                        sort)
         temperature-sum (->> response
                              (map :the_temp)
                              (reduce +))]
-    (/ temperature-sum (count response))))
+    {:average-temperature (/ temperature-sum (count response))
+     :starting (first timestamps)
+     :ending (last timestamps)}))
 
 (defn- get-city-id [city]
   (-> (str location-url-prefix city)
@@ -55,8 +60,8 @@
   (let [city (:city path-params)
         city-id (get-city-id city)]
     {:status 200
-     :body {:city city
-            :average-temperature (get-temperature city-id)}}))
+     :body (assoc (get-temperature city-id)
+             :city city)}))
 
 ;; Routes and middleware
 
