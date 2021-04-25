@@ -21,10 +21,35 @@
                 "!\n"
                 (OffsetDateTime/now))}))
 
+; https://www.metaweather.com/api/
+(def weather-url-prefix "https://www.metaweather.com/api/location/")
+
+(defn- weather-url [location]
+  (let [now (OffsetDateTime/now)]
+    (str weather-url-prefix location
+         "/" (.getYear now)
+         "/" (.getMonthValue now)
+         "/" (.getDayOfMonth now))))
+
+(defn- get-temperature []
+  (let [response (-> @(http/get (weather-url "565346")) ; Helsinki weoeid = 565346
+                     :body
+                     bs/to-string
+                     (j/read-value (j/object-mapper {:decode-key-fn keyword})))
+        temperature-sum (->> response
+                             (map :the_temp)
+                             (reduce +))]
+    (/ temperature-sum (count response))))
+
+(defn- weather-handler [_]
+  {:status 200
+   :body {:average-temperature (get-temperature)}})
+
 ;; Routes and middleware
 
 (def routes
-  [["/" {:get {:handler home-handler}}]])
+  [["/" {:get {:handler home-handler}}]
+   ["/api/weather" {:get {:handler weather-handler}}]])
 
 (def ring-opts
   {:data
