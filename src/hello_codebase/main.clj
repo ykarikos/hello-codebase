@@ -4,15 +4,22 @@
             [reitit.ring :as ring]
             [muuntaja.core :as m]
             [reitit.ring.middleware.muuntaja :as muuntaja]
+            [reitit.ring.middleware.parameters :as parameters]
             [byte-streams :as bs]
-            [jsonista.core :as j]))
+            [jsonista.core :as j])
+  (:import [java.time OffsetDateTime]))
 
 ;; Handlers
 
-(defn home-handler [request]
-  {:status 200
-   :headers {"Content-Type" "text/plain"}
-   :body "Hello world!"})
+(defn home-handler [{:keys [params]}]
+  (let [friend (get params "friend")]
+    {:status 200
+     :headers {"Content-Type" "text/plain; charset=utf-8"}
+     :body (str "Hello Aurajoki Overflow"
+                (when friend
+                  (str " and " friend))
+                "!\n\n"
+                (OffsetDateTime/now))}))
 
 ;; Routes and middleware
 
@@ -22,7 +29,8 @@
 (def ring-opts
   {:data
    {:muuntaja m/instance
-    :middleware [muuntaja/format-middleware]}})
+    :middleware [parameters/parameters-middleware
+                 muuntaja/format-middleware]}})
 
 (def app
   (ring/ring-handler
