@@ -59,9 +59,12 @@
 (defn- weather-handler [{:keys [path-params]}]
   (let [city (:city path-params)
         city-id (get-city-id city)]
-    {:status 200
-     :body (assoc (get-temperature city-id)
-             :city city)}))
+    (if city-id
+      {:status 200
+       :body (assoc (get-temperature city-id)
+               :city city)}
+      {:status 404
+       :body {:error (str "City " city " not found :-(")}})))
 
 ;; Routes and middleware
 
