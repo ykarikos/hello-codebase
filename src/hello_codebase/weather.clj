@@ -39,3 +39,6 @@
       http-get
       first
       :woeid))
+
+;(def weather-id-helsinki (get-weather-id "helsinki"))
+;(def response-helsinki (http-get (weather-url weather-id-helsinki)))
