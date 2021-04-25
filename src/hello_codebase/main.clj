@@ -23,6 +23,13 @@
 
 ; https://www.metaweather.com/api/
 (def weather-url-prefix "https://www.metaweather.com/api/location/")
+(def location-url-prefix "https://www.metaweather.com/api/location/search/?query=")
+
+(defn- http-get [url]
+  (-> @(http/get url)
+      :body
+      bs/to-string
+      (j/read-value (j/object-mapper {:decode-key-fn keyword}))))
 
 (defn- weather-url [location]
   (let [now (OffsetDateTime/now)]
@@ -31,25 +38,31 @@
          "/" (.getMonthValue now)
          "/" (.getDayOfMonth now))))
 
-(defn- get-temperature []
-  (let [response (-> @(http/get (weather-url "565346")) ; Helsinki weoeid = 565346
-                     :body
-                     bs/to-string
-                     (j/read-value (j/object-mapper {:decode-key-fn keyword})))
+(defn- get-temperature [city-id]
+  (let [response (http-get (weather-url city-id))
         temperature-sum (->> response
                              (map :the_temp)
                              (reduce +))]
     (/ temperature-sum (count response))))
 
-(defn- weather-handler [_]
-  {:status 200
-   :body {:average-temperature (get-temperature)}})
+(defn- get-city-id [city]
+  (-> (str location-url-prefix city)
+      http-get
+      first
+      :woeid))
+
+(defn- weather-handler [{:keys [path-params]}]
+  (let [city (:city path-params)
+        city-id (get-city-id city)]
+    {:status 200
+     :body {:city city
+            :average-temperature (get-temperature city-id)}}))
 
 ;; Routes and middleware
 
 (def routes
   [["/" {:get {:handler home-handler}}]
-   ["/api/weather" {:get {:handler weather-handler}}]])
+   ["/api/weather/:city" {:get {:handler weather-handler}}]])
 
 (def ring-opts
   {:data
