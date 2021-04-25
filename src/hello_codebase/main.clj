@@ -21,10 +21,34 @@
                 "!\n\n"
                 (OffsetDateTime/now))}))
 
+; https://open-meteo.com/en/docs
+; https://open-meteo.com/en/docs/geocoding-api
+(def weather-url-prefix "https://api.open-meteo.com/v1/forecast?hourly=temperature_2m&")
+
+(defn- weather-url [{:keys [latitude longitude]}]
+  (str weather-url-prefix
+       "latitude=" latitude "&"
+       "longitude=" longitude))
+
+(defn- get-temperature []
+  (let [response (-> @(http/get (weather-url {:latitude 60.16952 :longitude 24.93545})) ; Helsinki
+                     :body
+                     bs/to-string
+                     (j/read-value (j/object-mapper {:decode-key-fn keyword})))
+        temperatures (->> response
+                          :hourly
+                          :temperature_2m)]
+    (/ (reduce + temperatures) (count temperatures))))
+
+(defn- weather-handler [_]
+  {:status 200
+   :body {:average-temperature (get-temperature)}})
+
 ;; Routes and middleware
 
 (def routes
-  [["/" {:get {:handler home-handler}}]])
+  [["/" {:get {:handler home-handler}}]
+   ["/api/weather" {:get {:handler weather-handler}}]])
 
 (def ring-opts
   {:data
