@@ -1,14 +1,17 @@
 (ns hello-codebase.main
   (:gen-class)
-  (:require
-   [aleph.http :as http]
-   [reitit.ring :as ring]
-   [ring.middleware.defaults :as defaults]))
+  (:require [aleph.http :as http]
+            [reitit.ring :as ring]
+            [muuntaja.core :as m]
+            [reitit.ring.middleware.muuntaja :as muuntaja]
+            [byte-streams :as bs]
+            [jsonista.core :as j]))
 
 ;; Handlers
 
 (defn home-handler [request]
   {:status 200
+   :headers {"Content-Type" "text/plain"}
    :body "Hello world!"})
 
 ;; Routes and middleware
@@ -18,8 +21,8 @@
 
 (def ring-opts
   {:data
-   {:middleware
-    [[defaults/wrap-defaults defaults/api-defaults]]}})
+   {:muuntaja m/instance
+    :middleware [muuntaja/format-middleware]}})
 
 (def app
   (ring/ring-handler
@@ -35,6 +38,7 @@
       (Integer/parseInt)))
 
 (defn start-server []
+  (println "Starting server on port" port)
   (reset! server (http/start-server #'app {:port port})))
 
 (defn stop-server []
