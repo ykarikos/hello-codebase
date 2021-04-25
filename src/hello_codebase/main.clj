@@ -5,8 +5,7 @@
             [muuntaja.core :as m]
             [reitit.ring.middleware.muuntaja :as muuntaja]
             [reitit.ring.middleware.parameters :as parameters]
-            [byte-streams :as bs]
-            [jsonista.core :as j])
+            [hello-codebase.weather :as weather])
   (:import [java.time OffsetDateTime]))
 
 ;; Handlers
@@ -21,47 +20,12 @@
                 "!\n"
                 (OffsetDateTime/now))}))
 
-; https://www.metaweather.com/api/
-(def weather-url-prefix "https://www.metaweather.com/api/location/")
-(def location-url-prefix "https://www.metaweather.com/api/location/search/?query=")
-
-(defn- http-get [url]
-  (-> @(http/get url)
-      :body
-      bs/to-string
-      (j/read-value (j/object-mapper {:decode-key-fn keyword}))))
-
-(defn- weather-url [location]
-  (let [now (OffsetDateTime/now)]
-    (str weather-url-prefix location
-         "/" (.getYear now)
-         "/" (.getMonthValue now)
-         "/" (.getDayOfMonth now))))
-
-(defn- get-temperature [city-id]
-  (let [response (http-get (weather-url city-id))
-        timestamps (->> response
-                        (map :created response)
-                        sort)
-        temperature-sum (->> response
-                             (map :the_temp)
-                             (reduce +))]
-    {:average-temperature (/ temperature-sum (count response))
-     :starting (first timestamps)
-     :ending (last timestamps)}))
-
-(defn- get-city-id [city]
-  (-> (str location-url-prefix city)
-      http-get
-      first
-      :woeid))
-
 (defn- weather-handler [{:keys [path-params]}]
   (let [city (:city path-params)
-        city-id (get-city-id city)]
+        city-id (weather/get-city-id city)]
     (if city-id
       {:status 200
-       :body (assoc (get-temperature city-id)
+       :body (assoc (weather/get-temperature city-id)
                :city city)}
       {:status 404
        :body {:error (str "City " city " not found :-(")}})))
