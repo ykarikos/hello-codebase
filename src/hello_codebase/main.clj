@@ -38,10 +38,17 @@
        "longitude=" longitude))
 
 (defn- get-temperature [location]
-  (let [temperatures (->> (api-get (weather-url location))
+  (let [response (api-get (weather-url location))
+        timestamps (->> response
+                        :hourly
+                        :time
+                        sort)
+        temperatures (->> response
                           :hourly
                           :temperature_2m)]
-    (/ (reduce + temperatures) (count temperatures))))
+    {:average-temperature (/ (reduce + temperatures) (count temperatures))
+     :starting (first timestamps)
+     :ending (last timestamps)}))
 
 (defn get-location [city]
   (-> (str geocoding-url-prefix city)
@@ -53,8 +60,8 @@
   (let [city (:city path-params)
         location (get-location city)]
     {:status 200
-     :body {:city city
-            :average-temperature (get-temperature location)}}))
+     :body (assoc (get-temperature location)
+                  :city city)}))
 
 ;; Routes and middleware
 
