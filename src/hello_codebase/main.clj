@@ -22,33 +22,45 @@
                 (OffsetDateTime/now))}))
 
 ; https://open-meteo.com/en/docs
-; https://open-meteo.com/en/docs/geocoding-api
 (def weather-url-prefix "https://api.open-meteo.com/v1/forecast?hourly=temperature_2m&")
+; https://open-meteo.com/en/docs/geocoding-api
+(def geocoding-url-prefix "https://geocoding-api.open-meteo.com/v1/search?name=")
+
+(defn- api-get [url]
+  (-> @(http/get url)
+      :body
+      bs/to-string
+      (j/read-value (j/object-mapper {:decode-key-fn keyword}))))
 
 (defn- weather-url [{:keys [latitude longitude]}]
   (str weather-url-prefix
        "latitude=" latitude "&"
        "longitude=" longitude))
 
-(defn- get-temperature []
-  (let [response (-> @(http/get (weather-url {:latitude 60.16952 :longitude 24.93545})) ; Helsinki
-                     :body
-                     bs/to-string
-                     (j/read-value (j/object-mapper {:decode-key-fn keyword})))
-        temperatures (->> response
+(defn- get-temperature [location]
+  (let [temperatures (->> (api-get (weather-url location))
                           :hourly
                           :temperature_2m)]
     (/ (reduce + temperatures) (count temperatures))))
 
-(defn- weather-handler [_]
-  {:status 200
-   :body {:average-temperature (get-temperature)}})
+(defn get-location [city]
+  (-> (str geocoding-url-prefix city)
+      api-get
+      :results
+      first))
+
+(defn- weather-handler [{:keys [path-params]}]
+  (let [city (:city path-params)
+        location (get-location city)]
+    {:status 200
+     :body {:city city
+            :average-temperature (get-temperature location)}}))
 
 ;; Routes and middleware
 
 (def routes
   [["/" {:get {:handler home-handler}}]
-   ["/api/weather" {:get {:handler weather-handler}}]])
+   ["/api/weather/:city" {:get {:handler weather-handler}}]])
 
 (def ring-opts
   {:data
