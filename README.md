@@ -6,7 +6,7 @@ by [@ykarikos](https://twitter.com/ykarikos) and [@hamatti](https://twitter.com/
 
 Based on the [lein-web-lite](https://github.com/kwrooijen/lein-web-lite) template that
 uses [reitit](https://github.com/metosin/reitit/). 
-Uses [MetaWeather API](https://www.metaweather.com/api/) as the data source.
+Uses [Open Meteo API](https://open-meteo.com/en/docs) as the data source.
 
 ## Prerequisities
 

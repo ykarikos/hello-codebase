@@ -22,11 +22,11 @@
 
 (defn- weather-handler [{:keys [path-params]}]
   (let [city (:city path-params)
-        city-id (weather/get-city-id city)]
-    (if city-id
+        location (weather/get-location city)]
+    (if location
       {:status 200
-       :body (assoc (weather/get-temperature city-id)
-               :city city)}
+       :body (assoc (weather/get-avg-temperature location)
+                    :city city)}
       {:status 404
        :body {:error (str "City " city " not found :-(")}})))
 

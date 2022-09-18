@@ -4,10 +4,10 @@
             [jsonista.core :as j])
   (:import [java.time OffsetDateTime]))
 
-
-; https://www.metaweather.com/api/
-(def weather-url-prefix "https://www.metaweather.com/api/location/")
-(def location-url-prefix "https://www.metaweather.com/api/location/search/?query=")
+; https://open-meteo.com/en/docs
+; https://open-meteo.com/en/docs/geocoding-api
+(def weather-url-prefix "https://api.open-meteo.com/v1/forecast?hourly=temperature_2m&")
+(def geocoding-url-prefix "https://geocoding-api.open-meteo.com/v1/search?name=")
 
 (defn- http-get [url]
   (-> @(http/get url)
@@ -15,30 +15,30 @@
       bs/to-string
       (j/read-value (j/object-mapper {:decode-key-fn keyword}))))
 
-(defn- weather-url [location]
-  (let [now (OffsetDateTime/now)]
-    (str weather-url-prefix location
-         "/" (.getYear now)
-         "/" (.getMonthValue now)
-         "/" (.getDayOfMonth now))))
+(defn- weather-url [{:keys [latitude longitude]}]
+  (str weather-url-prefix
+       "latitude=" latitude "&"
+       "longitude=" longitude))
 
-(defn get-temperature [city-id]
-  (let [response (http-get (weather-url city-id))
-        timestamps (->> response
-                        (map :created response)
+(defn get-avg-temperature [location]
+  (let [hourly-data (-> (weather-url location)
+                        http-get
+                        :hourly)
+        timestamps (->> hourly-data
+                        :time
                         sort)
-        temperature-sum (->> response
-                             (map :the_temp)
+        temperature-sum (->> hourly-data
+                             :temperature_2m
                              (reduce +))]
-    {:average-temperature (/ temperature-sum (count response))
+    {:average-temperature (/ temperature-sum (count (:temperature_2m hourly-data)))
      :starting (first timestamps)
-     :ending (last timestamps)}))
+     :ending (last timestamps)
+     :location (:name location)
+     :country (:country_code location)
+     :elevation (:elevation location)}))
 
-(defn get-city-id [city]
-  (-> (str location-url-prefix city)
+(defn get-location [city]
+  (-> (str geocoding-url-prefix city)
       http-get
-      first
-      :woeid))
-
-;(def weather-id-helsinki (get-weather-id "helsinki"))
-;(def response-helsinki (http-get (weather-url weather-id-helsinki)))
+      :results
+      first))
