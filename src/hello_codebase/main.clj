@@ -5,8 +5,7 @@
             [muuntaja.core :as m]
             [reitit.ring.middleware.muuntaja :as muuntaja]
             [reitit.ring.middleware.parameters :as parameters]
-            [byte-streams :as bs]
-            [jsonista.core :as j])
+            [hello-codebase.weather :as weather])
   (:import [java.time OffsetDateTime]))
 
 ;; Handlers
@@ -21,47 +20,13 @@
                 "!\n\n"
                 (OffsetDateTime/now))}))
 
-; https://open-meteo.com/en/docs
-(def weather-url-prefix "https://api.open-meteo.com/v1/forecast?hourly=temperature_2m&")
-; https://open-meteo.com/en/docs/geocoding-api
-(def geocoding-url-prefix "https://geocoding-api.open-meteo.com/v1/search?name=")
-
-(defn- api-get [url]
-  (-> @(http/get url)
-      :body
-      bs/to-string
-      (j/read-value (j/object-mapper {:decode-key-fn keyword}))))
-
-(defn- weather-url [{:keys [latitude longitude]}]
-  (str weather-url-prefix
-       "latitude=" latitude "&"
-       "longitude=" longitude))
-
-(defn- get-temperature [location]
-  (let [response (api-get (weather-url location))
-        timestamps (->> response
-                        :hourly
-                        :time
-                        sort)
-        temperatures (->> response
-                          :hourly
-                          :temperature_2m)]
-    {:average-temperature (/ (reduce + temperatures) (count temperatures))
-     :starting (first timestamps)
-     :ending (last timestamps)}))
-
-(defn get-location [city]
-  (-> (str geocoding-url-prefix city)
-      api-get
-      :results
-      first))
 
 (defn- weather-handler [{:keys [path-params]}]
   (let [city (:city path-params)
-        location (get-location city)]
+        location (weather/get-location city)]
     (if location
       {:status 200
-       :body (assoc (get-temperature location)
+       :body (assoc (weather/get-temperature location)
                     :city city)}
       {:status 404
        :body {:error (str "City " city " not found :-(")}})))
